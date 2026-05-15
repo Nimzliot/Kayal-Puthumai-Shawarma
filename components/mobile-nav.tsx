@@ -1,0 +1,54 @@
+"use client";
+
+import Link from "next/link";
+import { ClipboardList, Home, MenuSquare, ShoppingCart, UserRound } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useCartStore } from "@/store/cart-store";
+import { cn } from "@/lib/utils";
+
+const items = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/menu", label: "Menu", icon: MenuSquare },
+  { href: "/checkout", label: "Cart", icon: ShoppingCart },
+  { href: "/track-order", label: "Status", icon: ClipboardList },
+  { href: "/login?mode=login", match: "/login", label: "Login", icon: UserRound }
+];
+
+export function MobileNav() {
+  const pathname = usePathname();
+  const cartItems = useCartStore((state) => state.items);
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  return (
+    <nav className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-xl rounded-[28px] border border-brand/20 bg-black/92 p-2 shadow-glow backdrop-blur-xl md:hidden">
+      <div className="grid grid-cols-5 gap-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = item.match ? pathname.startsWith(item.match) : pathname === item.href;
+          const isCart = item.href === "/checkout";
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "relative rounded-[20px] px-3 py-2 text-center text-[11px] text-foreground/65 transition",
+                active && "bg-brand text-black"
+              )}
+            >
+              <span className="relative inline-block">
+                <Icon className="mx-auto mb-1 h-4 w-4" />
+                {isCart && cartCount > 0 ? (
+                  <span className="absolute -right-2 -top-1 rounded-full bg-brand px-1.5 text-[10px] font-bold text-black">
+                    {cartCount}
+                  </span>
+                ) : null}
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

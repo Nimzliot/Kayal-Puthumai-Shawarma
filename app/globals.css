@@ -1,0 +1,45 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-foreground font-body antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(247, 201, 66, 0.14), transparent 25%),
+    radial-gradient(circle at bottom right, rgba(247, 201, 66, 0.12), transparent 20%),
+    linear-gradient(180deg, #050505 0%, #0b0b0b 100%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(247, 201, 66, 0.4) rgba(255, 255, 255, 0.02);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(247, 201, 66, 0.4);
+  border-radius: 9999px;
+}
+
+.glass-panel {
+  @apply border border-border bg-card/70 shadow-soft backdrop-blur-xl;
+}
+
+.gold-text {
+  background: linear-gradient(135deg, #f7c942, #ffefad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
