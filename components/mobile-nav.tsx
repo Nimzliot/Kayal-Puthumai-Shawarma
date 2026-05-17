@@ -1,23 +1,75 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ClipboardList, Home, MenuSquare, ShoppingCart, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/store/cart-store";
 import { cn } from "@/lib/utils";
 
-const items = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/menu", label: "Menu", icon: MenuSquare },
-  { href: "/checkout", label: "Cart", icon: ShoppingCart },
-  { href: "/track-order", label: "Status", icon: ClipboardList },
-  { href: "/login?mode=login", match: "/login", label: "Login", icon: UserRound }
-];
+type MobileProfile = {
+  name: string;
+  role: "customer" | "admin";
+} | null;
 
 export function MobileNav() {
   const pathname = usePathname();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const cartItems = useCartStore((state) => state.items);
   const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const [profile, setProfile] = useState<MobileProfile>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("users")
+        .select("name, role")
+        .eq("id", user.id)
+        .single();
+
+      setProfile(data ? { name: data.name, role: data.role } : null);
+    }
+
+    void loadProfile();
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadProfile();
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const items = [
+    { href: "/", label: "Home", icon: Home },
+    { href: "/menu", label: "Menu", icon: MenuSquare },
+    { href: "/checkout", label: "Cart", icon: ShoppingCart },
+    { href: "/track-order", label: "Status", icon: ClipboardList },
+    profile
+      ? {
+          href: profile.role === "admin" ? "/admin" : "/account",
+          match: profile.role === "admin" ? "/admin" : "/account",
+          label: profile.name.split(" ")[0] || "Account",
+          icon: UserRound
+        }
+      : {
+          href: "/login?mode=login",
+          match: "/login",
+          label: "Login",
+          icon: UserRound
+        }
+  ];
 
   return (
     <nav className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-xl rounded-[28px] border border-brand/20 bg-black/92 p-2 shadow-glow backdrop-blur-xl md:hidden">
@@ -44,7 +96,7 @@ export function MobileNav() {
                   </span>
                 ) : null}
               </span>
-              {item.label}
+              <span className="block truncate">{item.label}</span>
             </Link>
           );
         })}

@@ -59,14 +59,35 @@ export function CheckoutPage() {
     setShowRoutePreview(changedFromShop);
   }, [location.latitude, location.longitude]);
 
-  function handleUseCurrentLocation() {
+  async function handleUseCurrentLocation() {
     if (!navigator.geolocation) {
       setLocationMessage("Location access is not supported on this device.");
       return;
     }
 
+    if (typeof window !== "undefined" && window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
+      setLocationMessage("Current location needs HTTPS in production. Open the secure site URL and try again.");
+      return;
+    }
+
     setIsLocating(true);
     setLocationMessage("Fetching your current location...");
+
+    try {
+      if ("permissions" in navigator && navigator.permissions?.query) {
+        const permission = await navigator.permissions.query({
+          name: "geolocation" as PermissionName
+        });
+
+        if (permission.state === "denied") {
+          setIsLocating(false);
+          setLocationMessage("Location permission is blocked for this site. Allow it in browser settings and try again.");
+          return;
+        }
+      }
+    } catch {
+      // Some browsers do not fully support the Permissions API. Continue to geolocation request.
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -82,6 +103,10 @@ export function CheckoutPage() {
         setLocationMessage(
           error.code === error.PERMISSION_DENIED
             ? "Location permission was denied. Please allow it in your browser settings."
+            : error.code === error.POSITION_UNAVAILABLE
+              ? "Your device could not detect a location. Turn on GPS or mobile location and try again."
+              : error.code === error.TIMEOUT
+                ? "Location request timed out. Try again in an open area with better signal."
             : "Unable to fetch your current location. Please enter the address manually."
         );
       },
