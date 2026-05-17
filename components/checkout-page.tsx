@@ -6,6 +6,7 @@ import { LoaderCircle, LocateFixed, MapPin, ShieldCheck, Smartphone, Wallet } fr
 import { MapView } from "@/components/map-view";
 import { Button } from "@/components/ui/button";
 import { dispatchAppNotification } from "@/lib/notifications";
+import type { SavedAddress } from "@/lib/types";
 import { useCartStore, useCartSummary } from "@/store/cart-store";
 import {
   calculateDeliveryFee,
@@ -17,13 +18,22 @@ import {
 
 const presetTips = [10, 20, 50];
 
-export function CheckoutPage() {
+export function CheckoutPage({
+  profile,
+  savedAddresses
+}: {
+  profile: {
+    name: string;
+    phone: string | null;
+  } | null;
+  savedAddresses: SavedAddress[];
+}) {
   const router = useRouter();
   const { items, subtotal, prepTime, tipAmount } = useCartSummary();
   const { note, setNote, setTipAmount, clearCart } = useCartStore();
   const empty = items.length === 0;
-  const [receiverName, setReceiverName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [receiverName, setReceiverName] = useState(profile?.name ?? "");
+  const [phoneNumber, setPhoneNumber] = useState(profile?.phone ?? "");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [saveAddress, setSaveAddress] = useState(true);
   const [addressLabel, setAddressLabel] = useState("Home");
@@ -51,6 +61,25 @@ export function CheckoutPage() {
   const deliveryFee = useMemo(() => calculateDeliveryFee(distanceKm), [distanceKm]);
   const eta = useMemo(() => prepTime + calculateTravelMinutes(distanceKm), [distanceKm, prepTime]);
   const total = subtotal + deliveryFee + tipAmount;
+
+  function handleSavedAddressSelect(addressId: string) {
+    const selected = savedAddresses.find((address) => address.id === addressId);
+    if (!selected) {
+      return;
+    }
+
+    setDeliveryAddress(selected.addressLine);
+    setAddressLabel(selected.label);
+    if (selected.gpsLatitude !== null && selected.gpsLongitude !== null) {
+      setLocation({
+        latitude: selected.gpsLatitude,
+        longitude: selected.gpsLongitude
+      });
+      setLocationMessage("Saved address loaded. Route and delivery distance updated.");
+    } else {
+      setLocationMessage("Saved address loaded. Add current location if you want accurate delivery distance.");
+    }
+  }
 
   useEffect(() => {
     const changedFromShop =
@@ -277,6 +306,23 @@ export function CheckoutPage() {
                 disabled={!saveAddress}
               />
             </div>
+            {savedAddresses.length > 0 ? (
+              <div className="mt-4">
+                <label className="mb-2 block text-sm text-foreground/70">Use a saved address</label>
+                <select
+                  defaultValue=""
+                  onChange={(event) => handleSavedAddressSelect(event.target.value)}
+                  className="w-full rounded-2xl border border-border bg-black/30 px-4 py-3 text-sm outline-none"
+                >
+                  <option value="">Select saved address</option>
+                  {savedAddresses.map((address) => (
+                    <option key={address.id} value={address.id}>
+                      {address.label} - {address.addressLine}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             {fieldErrors.addressLabel ? (
               <p className="mt-3 text-sm text-danger">{fieldErrors.addressLabel}</p>
             ) : null}

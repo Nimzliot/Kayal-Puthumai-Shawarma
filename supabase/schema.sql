@@ -1,14 +1,29 @@
 create extension if not exists "pgcrypto";
 
-create type public.app_role as enum ('customer', 'admin');
-create type public.order_status as enum (
-  'order_placed',
-  'accepted',
-  'preparing',
-  'out_for_delivery',
-  'delivered',
-  'rejected'
-);
+do $$
+begin
+  if not exists (
+    select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'app_role'
+  ) then
+    create type public.app_role as enum ('customer', 'admin');
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_type where typnamespace = 'public'::regnamespace and typname = 'order_status'
+  ) then
+    create type public.order_status as enum (
+      'order_placed',
+      'accepted',
+      'preparing',
+      'out_for_delivery',
+      'delivered',
+      'rejected'
+    );
+  end if;
+end $$;
 
 create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -50,10 +65,24 @@ create table if not exists public.orders (
   payment_method text not null default 'cash_on_delivery',
   tip_amount numeric(10,2) not null default 0,
   eta_minutes integer not null default 30,
+  eta_started_at timestamptz not null default now(),
+  timing_status text not null default 'tracking' check (timing_status in ('tracking', 'on_time', 'late')),
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.orders
+  add column if not exists eta_started_at timestamptz not null default now();
+
+alter table public.orders
+  add column if not exists timing_status text not null default 'tracking';
+
+alter table public.orders
+  drop constraint if exists orders_timing_status_check;
+
+alter table public.orders
+  add constraint orders_timing_status_check check (timing_status in ('tracking', 'on_time', 'late'));
 
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(),
@@ -194,28 +223,34 @@ alter table public.saved_addresses enable row level security;
 alter table public.favorites enable row level security;
 alter table public.notifications enable row level security;
 
+drop policy if exists "Public can read enabled products" on public.products;
 create policy "Public can read enabled products"
 on public.products for select
 using (enabled = true and stock_available = true);
 
+drop policy if exists "Admins manage products" on public.products;
 create policy "Admins manage products"
 on public.products for all
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "Users read own profile" on public.users;
 create policy "Users read own profile"
 on public.users for select
 using (auth.uid() = id or public.is_admin());
 
+drop policy if exists "Users update own profile" on public.users;
 create policy "Users update own profile"
 on public.users for update
 using (auth.uid() = id or public.is_admin())
 with check (auth.uid() = id or public.is_admin());
 
+drop policy if exists "Admins manage user profiles" on public.users;
 create policy "Admins manage user profiles"
 on public.users for insert
 with check (public.is_admin());
 
+drop policy if exists "Users read own orders" on public.orders;
 create policy "Users read own orders"
 on public.orders for select
 using (
@@ -223,15 +258,18 @@ using (
   or public.is_admin()
 );
 
+drop policy if exists "Authenticated users create own orders" on public.orders;
 create policy "Authenticated users create own orders"
 on public.orders for insert
 with check (auth.uid() = user_id);
 
+drop policy if exists "Admins update orders" on public.orders;
 create policy "Admins update orders"
 on public.orders for update
 using (public.is_admin())
 with check (public.is_admin());
 
+drop policy if exists "Users read their order items" on public.order_items;
 create policy "Users read their order items"
 on public.order_items for select
 using (
@@ -243,6 +281,7 @@ using (
   )
 );
 
+drop policy if exists "Users create their order items" on public.order_items;
 create policy "Users create their order items"
 on public.order_items for insert
 with check (
@@ -253,26 +292,42 @@ with check (
   )
 );
 
+drop policy if exists "Users manage own reviews" on public.reviews;
 create policy "Users manage own reviews"
 on public.reviews for select
 using (true);
 
+drop policy if exists "Authenticated users create reviews" on public.reviews;
 create policy "Authenticated users create reviews"
 on public.reviews for insert
 with check (auth.uid() = user_id);
 
+drop policy if exists "Users manage own addresses" on public.saved_addresses;
 create policy "Users manage own addresses"
 on public.saved_addresses for all
 using (auth.uid() = user_id or public.is_admin())
 with check (auth.uid() = user_id or public.is_admin());
 
+drop policy if exists "Users manage own favorites" on public.favorites;
 create policy "Users manage own favorites"
 on public.favorites for all
 using (auth.uid() = user_id or public.is_admin())
 with check (auth.uid() = user_id or public.is_admin());
 
+drop policy if exists "Users read own notifications" on public.notifications;
 create policy "Users read own notifications"
 on public.notifications for select
 using (auth.uid() = user_id or public.is_admin());
 
-alter publication supabase_realtime add table public.orders;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'orders'
+  ) then
+    alter publication supabase_realtime add table public.orders;
+  end if;
+end $$;

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Bike, CheckCircle2, Clock3, IndianRupee, MapPinned, Sandwich, TrendingUp } from "lucide-react";
 import { MapView } from "@/components/map-view";
 import { ProductManager } from "@/components/admin/product-manager";
 import { Button } from "@/components/ui/button";
 import type { OrderOverview, OrderStatus, Product } from "@/lib/types";
-import { formatCurrency, shopLocation } from "@/lib/utils";
+import { calculateRemainingEtaMinutes, formatCurrency, shopLocation } from "@/lib/utils";
 
 const statusLabels: Record<OrderStatus, string> = {
   order_placed: "Order placed",
@@ -35,6 +35,12 @@ export function AdminDashboard({
   const [message, setMessage] = useState("");
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [selectedOrderLocation, setSelectedOrderLocation] = useState<OrderOverview | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const stats = [
     { label: "Products", value: String(products.length), icon: Sandwich },
@@ -53,7 +59,15 @@ export function AdminDashboard({
     { label: "Map", value: "Fixed", icon: Clock3 }
   ];
 
-  async function handleStatusUpdate(orderId: string, status: Extract<OrderStatus, "accepted" | "preparing" | "out_for_delivery" | "delivered">) {
+  async function handleOrderAction({
+    orderId,
+    status,
+    timingDecision
+  }: {
+    orderId: string;
+    status?: Extract<OrderStatus, "accepted" | "preparing" | "out_for_delivery" | "delivered">;
+    timingDecision?: "on_time" | "late";
+  }) {
     setUpdatingOrderId(orderId);
     setMessage("");
 
@@ -63,7 +77,7 @@ export function AdminDashboard({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, timingDecision })
       });
 
       const result = (await response.json()) as {
@@ -73,10 +87,14 @@ export function AdminDashboard({
           id: string;
           status: OrderStatus;
           eta_minutes: number;
+          eta_started_at: string;
+          timing_status: OrderOverview["timingStatus"];
           total_amount: number | string;
           subtotal_amount: number | string;
           delivery_charge: number | string;
           tip_amount: number | string;
+          gps_latitude: number | string | null;
+          gps_longitude: number | string | null;
           updated_at: string;
         };
       };
@@ -93,20 +111,43 @@ export function AdminDashboard({
                 ...order,
                 status: result.order!.status,
                 etaMinutes: Number(result.order!.eta_minutes),
+                etaStartedAt: result.order!.eta_started_at,
+                timingStatus: result.order!.timing_status,
                 totalAmount: Number(result.order!.total_amount),
                 subtotalAmount: Number(result.order!.subtotal_amount),
                 deliveryCharge: Number(result.order!.delivery_charge),
                 tipAmount: Number(result.order!.tip_amount),
+                gpsLatitude: result.order!.gps_latitude === null ? null : Number(result.order!.gps_latitude),
+                gpsLongitude: result.order!.gps_longitude === null ? null : Number(result.order!.gps_longitude),
                 updatedAt: result.order!.updated_at
               }
             : order
         )
       );
 
-      setMessage(`Order moved to ${statusLabels[status]}.`);
+      if (timingDecision) {
+        setMessage(
+          timingDecision === "late"
+            ? "Order marked late and extra time added for the customer."
+            : "Order confirmed on time for the customer."
+        );
+      } else if (status) {
+        setMessage(`Order moved to ${statusLabels[status]}.`);
+      }
     } finally {
       setUpdatingOrderId(null);
     }
+  }
+
+  function openGoogleMaps(order: OrderOverview) {
+    if (order.gpsLatitude === null || order.gpsLongitude === null) {
+      return;
+    }
+
+    const destination = `${order.gpsLatitude},${order.gpsLongitude}`;
+    const origin = `${shopLocation.latitude},${shopLocation.longitude}`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+    window.open(googleMapsUrl, "_blank", "noopener,noreferrer");
   }
 
   const mapLatitude = selectedOrderLocation?.gpsLatitude ?? shopLocation.latitude;
@@ -146,6 +187,17 @@ export function AdminDashboard({
             {orders.length > 0 ? (
               orders.map((order) => (
                 <div key={order.id} className="rounded-[24px] border border-border p-4">
+                  {(() => {
+                    const remainingMinutes =
+                      order.status === "delivered" ? 0 : calculateRemainingEtaMinutes(order.etaStartedAt, order.etaMinutes);
+                    const needsTimingDecision =
+                      order.status !== "delivered" &&
+                      order.status !== "rejected" &&
+                      order.timingStatus === "tracking" &&
+                      remainingMinutes <= 5;
+
+                    return (
+                      <>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="font-medium text-white">#{order.id.slice(0, 8)}</p>
@@ -155,15 +207,38 @@ export function AdminDashboard({
                     <div className="text-right text-sm">
                       <p className="text-white">{formatCurrency(order.totalAmount)}</p>
                       <p className="mt-1 text-foreground/60">{statusLabels[order.status]}</p>
-                      <p className="mt-1 text-foreground/60">{order.etaMinutes} mins ETA</p>
+                      <p className="mt-1 text-foreground/60">{remainingMinutes} mins remaining</p>
+                      <p className="mt-1 text-foreground/60 capitalize">{order.timingStatus.replace("_", " ")}</p>
                     </div>
                   </div>
+                  {needsTimingDecision ? (
+                    <div className="mt-4 rounded-[20px] border border-brand/20 bg-brand/10 p-4">
+                      <p className="text-sm text-white">Only 5 minutes left. Is this order still on time?</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={updatingOrderId === order.id}
+                          onClick={() => handleOrderAction({ orderId: order.id, timingDecision: "on_time" })}
+                        >
+                          On time
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={updatingOrderId === order.id}
+                          onClick={() => handleOrderAction({ orderId: order.id, timingDecision: "late" })}
+                        >
+                          Late +10 min
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       variant="secondary"
                       disabled={order.gpsLatitude === null || order.gpsLongitude === null}
-                      onClick={() => setSelectedOrderLocation(order)}
+                      onClick={() => openGoogleMaps(order)}
                     >
                       <MapPinned className="mr-2 h-4 w-4" />
                       View location
@@ -174,12 +249,15 @@ export function AdminDashboard({
                         size="sm"
                         variant={order.status === action.status ? "primary" : "secondary"}
                         disabled={updatingOrderId === order.id || order.status === action.status}
-                        onClick={() => handleStatusUpdate(order.id, action.status as Extract<OrderStatus, "accepted" | "preparing" | "out_for_delivery" | "delivered">)}
+                        onClick={() => handleOrderAction({ orderId: order.id, status: action.status as Extract<OrderStatus, "accepted" | "preparing" | "out_for_delivery" | "delivered"> })}
                       >
                         {action.label}
                       </Button>
                     ))}
                   </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ))
             ) : (

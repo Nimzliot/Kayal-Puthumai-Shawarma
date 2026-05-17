@@ -109,6 +109,8 @@ export async function POST(request: NextRequest) {
       gps_latitude: parsed.data.gpsLatitude,
       gps_longitude: parsed.data.gpsLongitude,
       tip_amount: parsed.data.tipAmount,
+      eta_started_at: new Date().toISOString(),
+      timing_status: "tracking",
       notes: [parsed.data.note, `Receiver: ${parsed.data.receiverName}`, `Phone: ${parsed.data.phone}`]
         .filter(Boolean)
         .join("\n"),

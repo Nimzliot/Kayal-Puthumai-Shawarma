@@ -1,3 +1,4 @@
+import type { OrderStatus } from "@/lib/types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -59,4 +60,25 @@ export function calculateDeliveryFee(distanceKm: number) {
 
 export function calculateTravelMinutes(distanceKm: number) {
   return Math.max(8, Math.ceil(distanceKm * 4));
+}
+
+export function calculateRemainingEtaMinutes(etaStartedAt: string, etaMinutes: number) {
+  const elapsedMs = Date.now() - new Date(etaStartedAt).getTime();
+  const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60000));
+  return Math.max(0, etaMinutes - elapsedMinutes);
+}
+
+export function getStageEtaMinutes(status: OrderStatus, previousEtaMinutes: number) {
+  switch (status) {
+    case "accepted":
+      return Math.max(12, previousEtaMinutes - 3);
+    case "preparing":
+      return Math.max(8, previousEtaMinutes - 5);
+    case "out_for_delivery":
+      return Math.max(5, previousEtaMinutes - 6);
+    case "delivered":
+      return 0;
+    default:
+      return previousEtaMinutes;
+  }
 }

@@ -17,6 +17,8 @@ export type OrderStatus =
   | "delivered"
   | "rejected";
 
+export type OrderTimingStatus = "tracking" | "on_time" | "late";
+
 export type OrderOverview = {
   id: string;
   userId: string;
@@ -28,6 +30,8 @@ export type OrderOverview = {
   deliveryCharge: number;
   tipAmount: number;
   etaMinutes: number;
+  etaStartedAt: string;
+  timingStatus: OrderTimingStatus;
   deliveryAddress: string;
   gpsLatitude: number | null;
   gpsLongitude: number | null;
@@ -74,4 +78,13 @@ export type OrderTimelineStep = {
   label: string;
   completed: boolean;
   current: boolean;
+};
+
+export type SavedAddress = {
+  id: string;
+  label: string;
+  addressLine: string;
+  gpsLatitude: number | null;
+  gpsLongitude: number | null;
+  isDefault: boolean;
 };

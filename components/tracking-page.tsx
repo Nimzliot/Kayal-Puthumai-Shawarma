@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { OrderOverview, OrderStatus } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { calculateRemainingEtaMinutes, formatCurrency } from "@/lib/utils";
 
 const steps: Array<{ key: OrderStatus; label: string }> = [
   { key: "order_placed", label: "Order placed" },
@@ -34,10 +34,16 @@ const statusIndex: Record<OrderStatus, number> = {
 export function TrackingPage({ initialOrder }: { initialOrder: OrderOverview | null }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [order, setOrder] = useState<OrderOverview | null>(initialOrder);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     setOrder(initialOrder);
   }, [initialOrder]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!order) {
@@ -62,6 +68,8 @@ export function TrackingPage({ initialOrder }: { initialOrder: OrderOverview | n
                   ...current,
                   status: next.status as OrderStatus,
                   etaMinutes: Number(next.eta_minutes),
+                  etaStartedAt: String(next.eta_started_at),
+                  timingStatus: next.timing_status as OrderOverview["timingStatus"],
                   totalAmount: Number(next.total_amount),
                   deliveryCharge: Number(next.delivery_charge),
                   subtotalAmount: Number(next.subtotal_amount),
@@ -91,6 +99,9 @@ export function TrackingPage({ initialOrder }: { initialOrder: OrderOverview | n
     );
   }
 
+  const remainingMinutes =
+    order.status === "delivered" ? 0 : calculateRemainingEtaMinutes(order.etaStartedAt, order.etaMinutes);
+
   return (
     <main className="mx-auto max-w-5xl px-4 pb-32 pt-8 sm:px-6 lg:px-8">
       <section className="glass-panel rounded-[32px] p-6 sm:p-8">
@@ -100,7 +111,8 @@ export function TrackingPage({ initialOrder }: { initialOrder: OrderOverview | n
           <div className="rounded-full border border-brand/20 px-4 py-2">#{order.id.slice(0, 8)}</div>
           <div className="rounded-full border border-brand/20 px-4 py-2">{statusLabels[order.status]}</div>
           <div className="rounded-full border border-brand/20 px-4 py-2">{formatCurrency(order.totalAmount)}</div>
-          <div className="rounded-full border border-brand/20 px-4 py-2">{order.etaMinutes} mins ETA</div>
+          <div className="rounded-full border border-brand/20 px-4 py-2">{remainingMinutes} mins remaining</div>
+          <div className="rounded-full border border-brand/20 px-4 py-2 capitalize">{order.timingStatus.replace("_", " ")}</div>
         </div>
       </section>
 
