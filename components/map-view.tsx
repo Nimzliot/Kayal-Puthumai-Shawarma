@@ -15,6 +15,7 @@ type MapViewProps = {
     label?: string;
   };
   animateRoute?: boolean;
+  onSelectLocation?: ((location: { latitude: number; longitude: number }) => void) | null;
 };
 
 type RouteCoordinate = [number, number];
@@ -64,7 +65,8 @@ export function MapView({
   label = "Kayal Puthumai Shawarma delivery zone",
   className = "",
   origin,
-  animateRoute = false
+  animateRoute = false,
+  onSelectLocation = null
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
 
@@ -113,6 +115,18 @@ export function MapView({
         .setLngLat([longitude, latitude])
         .setPopup(new maplibregl.Popup({ offset: 25 }).setText(label))
         .addTo(map);
+
+      if (onSelectLocation) {
+        map.on("click", (event) => {
+          const nextLatitude = Number(event.lngLat.lat.toFixed(6));
+          const nextLongitude = Number(event.lngLat.lng.toFixed(6));
+          destinationMarker.setLngLat([nextLongitude, nextLatitude]);
+          onSelectLocation({
+            latitude: nextLatitude,
+            longitude: nextLongitude
+          });
+        });
+      }
 
       if (!origin) {
         return;
@@ -303,6 +317,7 @@ export function MapView({
     origin?.label,
     origin?.latitude,
     origin?.longitude,
+    onSelectLocation,
     zoom
   ]);
 

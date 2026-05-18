@@ -81,6 +81,11 @@ export function CheckoutPage({
     }
   }
 
+  function handleMapLocationPick(nextLocation: { latitude: number; longitude: number }) {
+    setLocation(nextLocation);
+    setLocationMessage("Map location selected. Route and delivery distance updated.");
+  }
+
   useEffect(() => {
     const changedFromShop =
       Math.abs(location.latitude - shopLocation.latitude) > 0.00001 ||
@@ -335,6 +340,9 @@ export function CheckoutPage({
                       Delivery location
                     </p>
                     <p className="mt-2 text-foreground/70">{locationMessage}</p>
+                    <p className="mt-2 text-xs text-foreground/55">
+                      You can either tap the map to choose a point or use your current location.
+                    </p>
                   </div>
                   <Button
                     type="button"
@@ -382,6 +390,7 @@ export function CheckoutPage({
                 label="Delivery location preview"
                 origin={shopOrigin}
                 animateRoute={showRoutePreview}
+                onSelectLocation={handleMapLocationPick}
               />
             </div>
           </section>
