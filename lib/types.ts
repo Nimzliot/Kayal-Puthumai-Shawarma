@@ -84,6 +84,7 @@ export type SavedAddress = {
   id: string;
   label: string;
   addressLine: string;
+  phone: string | null;
   gpsLatitude: number | null;
   gpsLongitude: number | null;
   isDefault: boolean;

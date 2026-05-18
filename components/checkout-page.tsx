@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, LocateFixed, MapPin, ShieldCheck, Smartphone, Wallet } from "lucide-react";
+import { Crosshair, LoaderCircle, LocateFixed, MapPin, ShieldCheck, Smartphone, Wallet } from "lucide-react";
 import { MapView } from "@/components/map-view";
 import { Button } from "@/components/ui/button";
 import { dispatchAppNotification } from "@/lib/notifications";
@@ -43,6 +43,7 @@ export function CheckoutPage({
   });
   const [showRoutePreview, setShowRoutePreview] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isPickingFromMap, setIsPickingFromMap] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [locationMessage, setLocationMessage] = useState(
     "The shop location is fixed. Tap below to use the customer's current location for delivery."
@@ -70,6 +71,9 @@ export function CheckoutPage({
 
     setDeliveryAddress(selected.addressLine);
     setAddressLabel(selected.label);
+    if (selected.phone) {
+      setPhoneNumber(selected.phone);
+    }
     if (selected.gpsLatitude !== null && selected.gpsLongitude !== null) {
       setLocation({
         latitude: selected.gpsLatitude,
@@ -83,7 +87,13 @@ export function CheckoutPage({
 
   function handleMapLocationPick(nextLocation: { latitude: number; longitude: number }) {
     setLocation(nextLocation);
+    setIsPickingFromMap(false);
     setLocationMessage("Map location selected. Route and delivery distance updated.");
+  }
+
+  function handleSelectFromMap() {
+    setIsPickingFromMap(true);
+    setLocationMessage("Tap anywhere on the map below to choose the customer location.");
   }
 
   useEffect(() => {
@@ -344,25 +354,36 @@ export function CheckoutPage({
                       You can either tap the map to choose a point or use your current location.
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleUseCurrentLocation}
-                    disabled={isLocating}
-                    className="min-w-48"
-                  >
-                    {isLocating ? (
-                      <>
-                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                        Locating...
-                      </>
-                    ) : (
-                      <>
-                        <LocateFixed className="mr-2 h-4 w-4" />
-                        Use current location
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:min-w-48">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleSelectFromMap}
+                      className="min-w-48"
+                    >
+                      <Crosshair className="mr-2 h-4 w-4" />
+                      {isPickingFromMap ? "Tap map below" : "Select from map"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleUseCurrentLocation}
+                      disabled={isLocating}
+                      className="min-w-48"
+                    >
+                      {isLocating ? (
+                        <>
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Locating...
+                        </>
+                      ) : (
+                        <>
+                          <LocateFixed className="mr-2 h-4 w-4" />
+                          Use current location
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-3 text-xs text-foreground/60">
                   <span className="rounded-full border border-border px-3 py-2">
@@ -380,6 +401,11 @@ export function CheckoutPage({
                   {showRoutePreview ? (
                     <span className="rounded-full border border-brand/25 bg-brand/10 px-3 py-2 text-brand">
                       Live route preview active
+                    </span>
+                  ) : null}
+                  {isPickingFromMap ? (
+                    <span className="rounded-full border border-brand/25 bg-brand/10 px-3 py-2 text-brand">
+                      Map selection mode on
                     </span>
                   ) : null}
                 </div>

@@ -113,6 +113,7 @@ export function AccountPage({ profile, orders, savedAddresses }: AccountPageProp
                   <div>
                     <p className="font-medium text-white">{address.label}</p>
                     <p className="mt-1 text-foreground/60">{address.addressLine}</p>
+                    {address.phone ? <p className="mt-1 text-foreground/60">{address.phone}</p> : null}
                   </div>
                   {address.isDefault ? (
                     <div className="rounded-full border border-brand/20 px-3 py-2 text-xs text-brand">Default</div>

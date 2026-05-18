@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       label: parsed.data.addressLabel ?? "Current Location",
       address_line: parsed.data.deliveryAddress,
+      phone: parsed.data.phone,
       gps_latitude: parsed.data.gpsLatitude,
       gps_longitude: parsed.data.gpsLongitude
     });

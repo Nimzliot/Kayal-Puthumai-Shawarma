@@ -129,7 +129,7 @@ export async function getCurrentUserSavedAddresses() {
 
   const { data, error } = await supabase
     .from("saved_addresses")
-    .select("id, label, address_line, gps_latitude, gps_longitude, is_default")
+    .select("id, label, address_line, phone, gps_latitude, gps_longitude, is_default")
     .eq("user_id", user.id)
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: false });
@@ -144,6 +144,7 @@ export async function getCurrentUserSavedAddresses() {
         id: row.id,
         label: row.label,
         addressLine: row.address_line,
+        phone: row.phone,
         gpsLatitude: row.gps_latitude === null ? null : Number(row.gps_latitude),
         gpsLongitude: row.gps_longitude === null ? null : Number(row.gps_longitude),
         isDefault: row.is_default

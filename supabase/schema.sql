@@ -108,11 +108,15 @@ create table if not exists public.saved_addresses (
   user_id uuid not null references public.users(id) on delete cascade,
   label text not null,
   address_line text not null,
+  phone text,
   gps_latitude numeric,
   gps_longitude numeric,
   is_default boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+alter table public.saved_addresses
+  add column if not exists phone text;
 
 create table if not exists public.favorites (
   user_id uuid not null references public.users(id) on delete cascade,
