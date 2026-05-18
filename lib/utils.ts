@@ -68,6 +68,19 @@ export function calculateRemainingEtaMinutes(etaStartedAt: string, etaMinutes: n
   return Math.max(0, etaMinutes - elapsedMinutes);
 }
 
+export function calculateRemainingEtaSeconds(etaStartedAt: string, etaMinutes: number) {
+  const elapsedMs = Date.now() - new Date(etaStartedAt).getTime();
+  const totalSeconds = Math.max(0, etaMinutes * 60 - Math.floor(elapsedMs / 1000));
+  return totalSeconds;
+}
+
+export function formatCountdownClock(totalSeconds: number) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function getStageEtaMinutes(status: OrderStatus, previousEtaMinutes: number) {
   switch (status) {
     case "accepted":

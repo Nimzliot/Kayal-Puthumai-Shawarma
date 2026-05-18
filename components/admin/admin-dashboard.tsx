@@ -6,7 +6,12 @@ import { MapView } from "@/components/map-view";
 import { ProductManager } from "@/components/admin/product-manager";
 import { Button } from "@/components/ui/button";
 import type { OrderOverview, OrderStatus, Product } from "@/lib/types";
-import { calculateRemainingEtaMinutes, formatCurrency, shopLocation } from "@/lib/utils";
+import {
+  calculateRemainingEtaSeconds,
+  formatCountdownClock,
+  formatCurrency,
+  shopLocation
+} from "@/lib/utils";
 
 const statusLabels: Record<OrderStatus, string> = {
   order_placed: "Order placed",
@@ -38,7 +43,7 @@ export function AdminDashboard({
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -188,8 +193,11 @@ export function AdminDashboard({
               orders.map((order) => (
                 <div key={order.id} className="rounded-[24px] border border-border p-4">
                   {(() => {
-                    const remainingMinutes =
-                      order.status === "delivered" ? 0 : calculateRemainingEtaMinutes(order.etaStartedAt, order.etaMinutes);
+                    const remainingSeconds =
+                      order.status === "delivered"
+                        ? 0
+                        : calculateRemainingEtaSeconds(order.etaStartedAt, order.etaMinutes);
+                    const remainingMinutes = Math.ceil(remainingSeconds / 60);
                     const needsTimingDecision =
                       order.status !== "delivered" &&
                       order.status !== "rejected" &&
@@ -207,13 +215,16 @@ export function AdminDashboard({
                     <div className="text-right text-sm">
                       <p className="text-white">{formatCurrency(order.totalAmount)}</p>
                       <p className="mt-1 text-foreground/60">{statusLabels[order.status]}</p>
-                      <p className="mt-1 text-foreground/60">{remainingMinutes} mins remaining</p>
+                      <p className="mt-1 font-mono text-base text-white">{formatCountdownClock(remainingSeconds)}</p>
+                      <p className="mt-1 text-foreground/60">Time remaining</p>
                       <p className="mt-1 text-foreground/60 capitalize">{order.timingStatus.replace("_", " ")}</p>
                     </div>
                   </div>
                   {needsTimingDecision ? (
                     <div className="mt-4 rounded-[20px] border border-brand/20 bg-brand/10 p-4">
-                      <p className="text-sm text-white">Only 5 minutes left. Is this order still on time?</p>
+                      <p className="text-sm text-white">
+                        5 minutes or less remaining. Will this order get late?
+                      </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button
                           size="sm"

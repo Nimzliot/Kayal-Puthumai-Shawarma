@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { OrderOverview, OrderStatus } from "@/lib/types";
 import { calculateRemainingEtaMinutes, formatCurrency } from "@/lib/utils";
@@ -93,14 +94,49 @@ export function TrackingPage({ initialOrder }: { initialOrder: OrderOverview | n
         <section className="glass-panel rounded-[32px] p-6 sm:p-8">
           <p className="text-xs uppercase tracking-[0.35em] text-brand">Order Status</p>
           <h1 className="mt-3 font-display text-3xl text-white">Track your order</h1>
-          <p className="mt-3 text-sm text-foreground/70">No order found for this account yet.</p>
+          <p className="mt-3 text-sm text-foreground/70">
+            Make an order to see the live order status here.
+          </p>
+          <Link
+            href="/menu"
+            className="mt-5 inline-flex rounded-full bg-brand px-5 py-3 text-sm font-semibold text-black"
+          >
+            Order now
+          </Link>
         </section>
       </main>
     );
   }
 
-  const remainingMinutes =
-    order.status === "delivered" ? 0 : calculateRemainingEtaMinutes(order.etaStartedAt, order.etaMinutes);
+  if (order.status === "delivered") {
+    return (
+      <main className="mx-auto max-w-5xl px-4 pb-32 pt-8 sm:px-6 lg:px-8">
+        <section className="glass-panel rounded-[32px] p-6 sm:p-8">
+          <p className="text-xs uppercase tracking-[0.35em] text-brand">Order Status</p>
+          <h1 className="mt-3 font-display text-3xl text-white">Order delivered</h1>
+          <p className="mt-3 text-sm text-foreground/70">
+            Your last order was delivered. Make a new order to see live order status here again.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm text-foreground/75">
+            <div className="rounded-full border border-brand/20 px-4 py-2">
+              #{order.id.slice(0, 8)}
+            </div>
+            <div className="rounded-full border border-brand/20 px-4 py-2">
+              {formatCurrency(order.totalAmount)}
+            </div>
+          </div>
+          <Link
+            href="/menu"
+            className="mt-5 inline-flex rounded-full bg-brand px-5 py-3 text-sm font-semibold text-black"
+          >
+            Make another order
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  const remainingMinutes = calculateRemainingEtaMinutes(order.etaStartedAt, order.etaMinutes);
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-32 pt-8 sm:px-6 lg:px-8">

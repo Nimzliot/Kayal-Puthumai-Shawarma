@@ -410,6 +410,17 @@ export function CheckoutPage({
                   ) : null}
                 </div>
               </div>
+              <div className="mb-3 flex items-center justify-between rounded-2xl border border-brand/15 bg-brand/5 px-4 py-3 text-sm text-foreground/70">
+                <span>
+                  {isPickingFromMap
+                    ? "Tap the map now to save the customer point."
+                    : "Want to choose manually? Use Select from map."}
+                </span>
+                <Button type="button" size="sm" variant="secondary" onClick={handleSelectFromMap}>
+                  <Crosshair className="mr-2 h-4 w-4" />
+                  Select from map
+                </Button>
+              </div>
               <MapView
                 latitude={location.latitude}
                 longitude={location.longitude}
